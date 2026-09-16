@@ -1,5 +1,19 @@
 # Context: metahub-admin-ui (worktree)
 
+## Status (2026-09-16, end of day)
+
+Tasks 1.1–1.3 (scaffold), 2.1–2.3 (config + engine + endpoint), 2.4 (UI),
+3.1/3.2 (deployment + seed config), 4.1 (sonar, gate OK) — DONE.
+Open: 4.2 knowledge-graph refresh (repo has no graph yet — run /understand).
+
+The deployed pod now runs the full resolution engine (flux GitSync keeps the
+image at the built tag; the seed ConfigMap mounts the example inventory).
+After the next pipeline run, `adminui.dev.example.com` lookup of
+`10.10.1.42` → `gpu/a100 (ip:0)`, `10.10.1.7` → `zen4 (cidr:N)`.
+
+Sonar: project metahub-admin-ui, gate OK on the branch; `.env` (gitignored)
+holds SONAR_QUBE_URL/TOKEN (copied from metahub-api's .env).
+
 ## What changed
 
 Session change `add-admin-ui-inventory-service` — **skeleton phase**
