@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -8,6 +9,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/metahub-registry/metahub-admin-ui/internal/inventory"
 	"github.com/metahub-registry/metahub-admin-ui/internal/server"
 )
 
@@ -18,6 +21,7 @@ var uiAssets fs.FS
 var (
 	port     int
 	logLevel string
+	cfgFile  string
 )
 
 var rootCmd = &cobra.Command{
@@ -33,10 +37,38 @@ inventory lookup (see openspec/changes/add-inventory-service/).`,
 		}
 		log.SetLevel(lvl)
 
+		// Inventory sources: config block + fail-fast validation. A missing
+		// FILE means "no sources configured" (empty inventory ⇒ every lookup
+		// is the documented 404 no-match); a present-but-invalid file is a
+		// startup failure naming the offending entry.
+		cfg, err := inventory.LoadConfig(cfgFile)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				log.WithField("config", cfgFile).Warn("inventory config not found — starting with an empty inventory")
+				cfg = inventory.Config{}
+			} else {
+				return fmt.Errorf("load inventory config %s: %w", cfgFile, err)
+			}
+		} else if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("invalid inventory config %s: %w", cfgFile, err)
+		}
+		engine, err := inventory.Build(cfg, inventory.NetPTRLookup)
+		if err != nil {
+			return fmt.Errorf("build inventory engine: %w", err)
+		}
+		log.WithFields(log.Fields{
+			"config":      cfgFile,
+			"entries":     len(cfg.Entries),
+			"rules":       len(cfg.Hostname.Rules),
+			"lookup_ttl":  engine.TTL(),
+		}).Info("inventory sources loaded")
+
 		srv := server.New(server.Options{
-			Port:    port,
-			Assets:  uiAssets,
-			Version: version,
+			Port:           port,
+			Assets:         uiAssets,
+			Version:        version,
+			Engine:         engine,
+			InventoryToken: os.Getenv("INVENTORY_TOKEN"),
 		})
 		return srv.ListenAndServe()
 	},
@@ -56,6 +88,8 @@ func init() {
 		"listen port (env: METAHUB_ADMIN_UI_PORT)")
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info",
 		"log level (debug|info|warn|error)")
+	rootCmd.Flags().StringVar(&cfgFile, "config", envOr("CFG_FILE", "/etc/metahub-admin-ui/config.yaml"),
+		"inventory config file (env: CFG_FILE)")
 	rootCmd.AddCommand(versionCmd)
 }
 
@@ -66,4 +100,11 @@ func envPort() int {
 		}
 	}
 	return 8080
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

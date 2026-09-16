@@ -5,9 +5,9 @@ services:
       - "8083:8080"
     environment:
       - METAHUB_ADMIN_UI_PORT=8080
-      # Optional bearer check on /api/v1 (spec: inventory-lookup). Unset ⇒
-      # the service trusts the internal network (v0 posture).
+      - CFG_FILE=/etc/metahub-admin-ui/config.yaml
+      # Optional bearer check on /api/v1/resolve (spec: inventory-lookup).
+      # Unset ⇒ the service trusts the internal network (v0 posture).
       # - INVENTORY_TOKEN=change-me
-    # Inventory config (entries/rules) arrives with openspec task 2.1:
-    # volumes:
-    #   - ./misc/config:/etc/metahub-admin-ui:ro
+    volumes:
+      - ./misc/config:/etc/metahub-admin-ui:ro

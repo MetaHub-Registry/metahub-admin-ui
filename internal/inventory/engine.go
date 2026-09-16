@@ -107,6 +107,11 @@ func Build(cfg Config, ptr PTRLookup) (*Engine, error) {
 	return e, nil
 }
 
+// TTL returns the configured PTR cache TTL (covers negative outcomes too).
+func (e *Engine) TTL() time.Duration {
+	return e.ttl
+}
+
 // Resolve evaluates the chain for ip. ok=false ⇒ no-match (the handler
 // answers the documented 404 {}).
 func (e *Engine) Resolve(ctx context.Context, ip net.IP) (Result, bool) {

@@ -1,0 +1,33 @@
+# Example inventory configuration for metahub-admin-ui.
+#
+# Start the service with:  CFG_FILE=/etc/metahub-admin-ui/config.yaml
+# (or `--config ./misc/config/config.example.yaml` locally).
+#
+# The ENTIRE resolution chain lives here — metahub-api only asks
+# GET /api/v1/resolve?ip=. Sources are evaluated in order, first match wins:
+#   1. exact-IP entries   (most specific operator statement)
+#   2. hostname patterns  (DNS PTR of the client IP, TTL-cached incl.
+#                          negative, matched case-insensitively, in order)
+#   3. CIDR entries       (longest matching prefix)
+#
+# Invalid sources (bad regex/CIDR/IP, empty profile) fail startup, naming
+# the offending entry. Reload = restart or SIGHUP in v0.
+
+inventory:
+  entries:
+    # Exact-IP entry (optional display hostname for the lookup UI)
+    - ip: "10.10.1.42"
+      profile: "gpu/a100"
+      hostname: "gpu-h100-042.a100.cluster.example.com"
+    # CIDR entry
+    - cidr: "10.0.1.0/24"
+      profile: "zen4"
+
+  hostname:
+    # PTR result cache (incl. negative outcomes); default 60s when unset.
+    lookup_ttl: 60s
+    rules:
+      - pattern: '\.a100\.cluster\.example\.com$'
+        profile: "gpu/a100"
+      - pattern: '\.zen4\.cpu\.example\.com$'
+        profile: "arch/zen4"

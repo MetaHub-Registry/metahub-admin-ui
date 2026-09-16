@@ -3,23 +3,29 @@
 package server
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"io/fs"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/chi-middleware/logrus-logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/metahub-registry/metahub-admin-ui/internal/inventory"
 )
 
 // Options configures the HTTP server.
 type Options struct {
-	Port    int
-	Assets  fs.FS  // embedded SPA build output (may be nil in tests)
-	Version string // reported by /api/v1/health and startup logs
+	Port           int
+	Assets         fs.FS             // embedded SPA build output (may be nil in tests)
+	Version        string            // reported by /api/v1/health and startup logs
+	Engine         *inventory.Engine // resolution engine (nil ⇒ always no-match)
+	InventoryToken string            // optional bearer check on /api/v1/resolve
 }
 
 // Server is the metahub-admin-ui HTTP service.
@@ -46,8 +52,16 @@ func (s *Server) Handler() http.Handler {
 	r.Use(middleware.Recoverer)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		// Health stays open — k8s probes and humans.
 		r.Get("/health", s.handleHealth)
-		r.Get("/resolve", handleResolve)
+		// The resolve surface optionally requires a bearer token (spec:
+		// inventory-lookup). Unset INVENTORY_TOKEN ⇒ network trust (v0).
+		r.Group(func(r chi.Router) {
+			if s.opts.InventoryToken != "" {
+				r.Use(bearerAuth(s.opts.InventoryToken))
+			}
+			r.Get("/resolve", s.handleResolve)
+		})
 	})
 
 	if s.opts.Assets != nil {
@@ -77,13 +91,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 
 // handleResolve implements GET /api/v1/resolve?ip=<ip>.
 //
-// Skeleton: the inventory is empty, so the spec-compliant no-match (404 {})
-// is the correct answer for every well-formed request. The real resolution
-// chain — exact-IP → hostname pattern (PTR, TTL-cached) → CIDR
-// longest-prefix — lands with openspec task 2.1–2.3.
-//
-// Contract (specs/inventory-lookup): the resolve path never responds 5xx.
-func handleResolve(w http.ResponseWriter, r *http.Request) {
+// Evaluates the configured resolution chain (exact-IP → hostname pattern →
+// CIDR; see internal/inventory). Contract (specs/inventory-lookup): 200 hit
+// with {ip, profile, hostname?, source}, 404 {} on no-match — the resolve
+// path never responds 5xx.
+func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 	ip := r.URL.Query().Get("ip")
 	if ip == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{
@@ -91,13 +103,55 @@ func handleResolve(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if net.ParseIP(ip) == nil {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "invalid ip: " + ip,
 		})
 		return
 	}
-	writeNoMatch(w)
+	if s.opts.Engine == nil {
+		// Defensive: a server built without an engine answers no-match —
+		// never a 5xx.
+		writeNoMatch(w)
+		return
+	}
+	res, ok := s.opts.Engine.Resolve(r.Context(), parsed)
+	if !ok {
+		writeNoMatch(w)
+		return
+	}
+	writeJSON(w, http.StatusOK, resolveResponse{
+		IP:       parsed.String(),
+		Profile:  res.Profile,
+		Hostname: res.Hostname,
+		Source:   res.Source,
+	})
+}
+
+// resolveResponse is the documented v1 shape — additive-only evolution.
+type resolveResponse struct {
+	IP       string `json:"ip"`
+	Profile  string `json:"profile"`
+	Hostname string `json:"hostname,omitempty"`
+	Source   string `json:"source"`
+}
+
+// bearerAuth enforces the optional INVENTORY_TOKEN check.
+func bearerAuth(token string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			const prefix = "Bearer "
+			auth := r.Header.Get("Authorization")
+			if !strings.HasPrefix(auth, prefix) ||
+				subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(auth, prefix)), []byte(token)) != 1 {
+				log.WithField("remote", r.RemoteAddr).Warn("resolve request rejected: missing/invalid bearer token")
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // writeNoMatch answers 404 with an empty JSON object — the documented
