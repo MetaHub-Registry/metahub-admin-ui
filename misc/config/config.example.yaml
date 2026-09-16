@@ -12,22 +12,28 @@
 #
 # Invalid sources (bad regex/CIDR/IP, empty profile) fail startup, naming
 # the offending entry. Reload = restart or SIGHUP in v0.
+#
+# This mirrors the dev-cluster seed (flux/metahub
+# clusters/k3s.metahub/dev/metahub-admin-ui/configmap.yaml).
 
 inventory:
   entries:
-    # Exact-IP entry (optional display hostname for the lookup UI)
-    - ip: "10.10.1.42"
-      profile: "gpu/a100"
-      hostname: "gpu-h100-042.a100.cluster.example.com"
-    # CIDR entry
-    - cidr: "10.0.1.0/24"
-      profile: "zen4"
+    # Lab machines (2026-09-16, operator-provided)
+    - ip: "192.168.5.115"
+      profile: "frame"
+      hostname: "frame.hvk"
+    - ip: "192.168.5.155"
+      profile: "bazzite"
+      hostname: "bazzite.hvk"
+    # Subnet fallback — everything else on the LAN resolves to generic
+    - cidr: "192.168.5.0/24"
+      profile: "generic"
 
   hostname:
     # PTR result cache (incl. negative outcomes); default 60s when unset.
-    lookup_ttl: 60s
-    rules:
-      - pattern: '\.a100\.cluster\.example\.com$'
-        profile: "gpu/a100"
-      - pattern: '\.zen4\.cpu\.example\.com$'
-        profile: "arch/zen4"
+    # No PTR records exist for the LAN yet — add records + rules to use
+    # this tier, e.g.:
+    # rules:
+    #   - pattern: '\.a100\.cluster\.example\.com$'
+    #     profile: "gpu/a100"
+    rules: []
