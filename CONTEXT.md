@@ -39,6 +39,20 @@ Session change `add-admin-ui-inventory-service` — **skeleton phase**
 
 - Task 2.1 config loading (viper? house style `CFG_FILE`?) — decide when
   implementing the `inventory` block.
-- flux/stack render line + compose-on-internal-network wiring (task 3.1)
-  needs the session-level `task render` slot `ADMINUI` (already reserved in
-  the session Taskfile).
+- Task 3.2 (seed example inventory config for the dev cluster) — config
+  volume/Secret wiring for the flux deployment still open.
+
+## Deployment wiring (2026-09-16)
+
+- **flux/metahub** (`8d1271a`): `dev/metahub-admin-ui/` (deployment :8080 +
+  ClusterIP service), Flux Kustomization `metahub-infra-dev-metahub-admin-ui`
+  (root kustomization Wave 3-dev), HTTPRoute
+  `adminui.dev.example.com → metahub-admin-ui:80`. Initial image tag follows
+  the pipeline scheme `metahub/admin-ui/dev/1-hostname-profile-resolution:1`.
+- **stack** (`e03cca5`): `tmpl/metahub-admin-ui.tpl` reshaped from the
+  CLI-copy to the metahub-ui pipeline shape — Test (docker ui+go targets),
+  Image (buildx multiarch → harbor `metahub/admin-ui/...`), **Deploy/GitSync
+  (the upgrade stage: patches the flux deployment.yaml + push)** and
+  AwaitRollout (pre-flight, flux nudge, adoption poll). Rendered
+  `dev/metahub-admin-ui.gocd.yaml` (MR1, IDX=17). No metalib upstream
+  material — the repo has no private Go deps.
