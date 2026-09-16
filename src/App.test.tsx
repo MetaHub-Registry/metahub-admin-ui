@@ -4,15 +4,12 @@ import App from "./App";
 import { renderWithProviders } from "./test/test-utils";
 
 describe("App", () => {
-  it("renders the admin headline", () => {
+  it("renders the nav with both pages", () => {
     renderWithProviders(<App />);
-    expect(
-      screen.getByRole("heading", { name: /metahub admin/i })
-    ).toBeInTheDocument();
-  });
-
-  it("points at the openspec change for the upcoming pages", () => {
-    renderWithProviders(<App />);
-    expect(screen.getByText(/add-inventory-service/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "MetaHub Admin" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Lookup" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Inventory" })).toBeInTheDocument();
+    // Default route is the lookup page.
+    expect(screen.getByRole("heading", { name: /ip lookup/i })).toBeInTheDocument();
   });
 });

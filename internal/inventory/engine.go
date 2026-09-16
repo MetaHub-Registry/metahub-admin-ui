@@ -31,6 +31,7 @@ type Result struct {
 // Engine evaluates the ordered resolution chain: exact-IP → hostname pattern
 // (PTR, TTL-cached incl. negative) → CIDR longest-prefix. First match wins.
 type Engine struct {
+	cfg   Config // original config (snapshot for the overview UI)
 	exact map[string]indexedEntry
 	cidrs []cidrEntry
 	rules []compiledRule
@@ -75,6 +76,7 @@ func Build(cfg Config, ptr PTRLookup) (*Engine, error) {
 		return nil, err
 	}
 	e := &Engine{
+		cfg:   cfg,
 		exact: make(map[string]indexedEntry),
 		ptr:   ptr,
 		cache: make(map[string]cacheEntry),
@@ -110,6 +112,59 @@ func Build(cfg Config, ptr PTRLookup) (*Engine, error) {
 // TTL returns the configured PTR cache TTL (covers negative outcomes too).
 func (e *Engine) TTL() time.Duration {
 	return e.ttl
+}
+
+// Snapshot is the read-only view of the configured sources for the
+// overview UI (GET /api/v1/inventory).
+type Snapshot struct {
+	Entries  []EntryView  `json:"entries"`
+	Hostname HostnameView `json:"hostname"`
+}
+
+// EntryView is one configured exact-IP or CIDR entry.
+type EntryView struct {
+	IP       string `json:"ip,omitempty"`
+	CIDR     string `json:"cidr,omitempty"`
+	Profile  string `json:"profile"`
+	Hostname string `json:"hostname,omitempty"` // display data
+}
+
+// HostnameView groups the PTR tier configuration.
+type HostnameView struct {
+	LookupTTL string     `json:"lookup_ttl"`
+	Rules     []RuleView `json:"rules"`
+}
+
+// RuleView is one ordered hostname-pattern rule.
+type RuleView struct {
+	Pattern string `json:"pattern"`
+	Profile string `json:"profile"`
+}
+
+// EmptySnapshot is the snapshot of a service without configured sources.
+func EmptySnapshot() Snapshot {
+	return Snapshot{
+		Entries:  []EntryView{},
+		Hostname: HostnameView{Rules: []RuleView{}},
+	}
+}
+
+// Snapshot renders the configured sources in configured order.
+func (e *Engine) Snapshot() Snapshot {
+	s := EmptySnapshot()
+	s.Hostname.LookupTTL = e.ttl.String()
+	for _, entry := range e.cfg.Entries {
+		s.Entries = append(s.Entries, EntryView{
+			IP:       entry.IP,
+			CIDR:     entry.CIDR,
+			Profile:  entry.Profile,
+			Hostname: entry.Hostname,
+		})
+	}
+	for _, rule := range e.cfg.Hostname.Rules {
+		s.Hostname.Rules = append(s.Hostname.Rules, RuleView{Pattern: rule.Pattern, Profile: rule.Profile})
+	}
+	return s
 }
 
 // Resolve evaluates the chain for ip. ok=false ⇒ no-match (the handler

@@ -54,13 +54,14 @@ func (s *Server) Handler() http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health stays open — k8s probes and humans.
 		r.Get("/health", s.handleHealth)
-		// The resolve surface optionally requires a bearer token (spec:
-		// inventory-lookup). Unset INVENTORY_TOKEN ⇒ network trust (v0).
+		// The resolve + inventory surface optionally requires a bearer token
+		// (spec: inventory-lookup). Unset INVENTORY_TOKEN ⇒ network trust (v0).
 		r.Group(func(r chi.Router) {
 			if s.opts.InventoryToken != "" {
 				r.Use(bearerAuth(s.opts.InventoryToken))
 			}
 			r.Get("/resolve", s.handleResolve)
+			r.Get("/inventory", s.handleInventory)
 		})
 	})
 
@@ -127,6 +128,16 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 		Hostname: res.Hostname,
 		Source:   res.Source,
 	})
+}
+
+// handleInventory serves the configured sources (entries + hostname rules)
+// for the overview UI.
+func (s *Server) handleInventory(w http.ResponseWriter, _ *http.Request) {
+	if s.opts.Engine == nil {
+		writeJSON(w, http.StatusOK, inventory.EmptySnapshot())
+		return
+	}
+	writeJSON(w, http.StatusOK, s.opts.Engine.Snapshot())
 }
 
 // resolveResponse is the documented v1 shape — additive-only evolution.
