@@ -77,7 +77,7 @@ func TestValidateFailsNamingTheEntry(t *testing.T) {
 		{
 			name:    "invalid regex blocks startup",
 			cfg:     Config{Hostname: HostnameConfig{Rules: []Rule{{Pattern: `\.a100[`, Profile: "x"}}}},
-			wantSub: `hostname.rules[0]: invalid pattern "\.a100["`,
+			wantSub: `hostname.rules[0]: invalid pattern '\.a100['`,
 		},
 		{
 			name: "invalid CIDR blocks startup",
