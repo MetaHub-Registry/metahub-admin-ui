@@ -54,14 +54,19 @@ func (s *Server) Handler() http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health stays open — k8s probes and humans.
 		r.Get("/health", s.handleHealth)
-		// The resolve + inventory surface optionally requires a bearer token
-		// (spec: inventory-lookup). Unset INVENTORY_TOKEN ⇒ network trust (v0).
+		// The resolve + entry-management surface optionally requires a bearer
+		// token (spec: inventory-lookup). Unset INVENTORY_TOKEN ⇒ network
+		// trust (v0).
 		r.Group(func(r chi.Router) {
 			if s.opts.InventoryToken != "" {
 				r.Use(bearerAuth(s.opts.InventoryToken))
 			}
 			r.Get("/resolve", s.handleResolve)
 			r.Get("/inventory", s.handleInventory)
+			// Runtime entries (openspec add-runtime-entry-api): ephemeral,
+			// in-memory overlay on top of the YAML sources.
+			r.Post("/entries", s.handleAddEntry)
+			r.Delete("/entries", s.handleDeleteEntry)
 		})
 	})
 

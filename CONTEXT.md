@@ -1,5 +1,19 @@
 # Context: metahub-admin-ui (worktree)
 
+## Runtime entry API (2026-09-17, sub-change add-runtime-entry-api)
+
+`POST /api/v1/entries` (201/400/409) + `DELETE /api/v1/entries?ip=|cidr=`
+(204/404-with-static-hint) manage an **in-memory overlay** on top of the
+YAML sources — wiped on restart. Overlay is consulted FIRST in the exact
+tier (runtime beats static for the same IP) and merged into the CIDR scan
+(runtime wins ties); sources `runtime-ip:<ip>` / `runtime-cidr:<cidr>`.
+Snapshot/UI flag overlay entries (`runtime: true`, violet badge). Purpose:
+GoCD agents self-register their pod IP for the e2e loop test (register →
+resolve → suffix-less login → token carries `e2e/<run>` → deregister).
+Purpose-built for the follow-up stack pipeline (task 4.x, display order 30).
+
+# Context notes (carried over)
+
 ## Status (2026-09-16, end of day)
 
 Tasks 1.1–1.3 (scaffold), 2.1–2.3 (config + engine + endpoint), 2.4 (UI),

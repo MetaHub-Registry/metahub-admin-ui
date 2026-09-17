@@ -53,6 +53,14 @@ export default function InventoryPage() {
               >
                 {entryKind(e)}
               </span>
+              {e.runtime && (
+                <span
+                  className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+                  title="Ephemeral runtime entry (POST /api/v1/entries) — wiped on restart"
+                >
+                  runtime
+                </span>
+              )}
               <span className="font-mono text-sm">{e.ip ?? e.cidr}</span>
               <span className="ml-auto font-mono text-sm text-sky-700 dark:text-sky-400">
                 {e.profile}

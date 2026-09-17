@@ -30,13 +30,17 @@ type Result struct {
 
 // Engine evaluates the ordered resolution chain: exact-IP → hostname pattern
 // (PTR, TTL-cached incl. negative) → CIDR longest-prefix. First match wins.
+// Runtime entries (POST /api/v1/entries) live in an in-memory overlay that
+// is consulted first within the exact tier and merged into the CIDR scan
+// (runtime wins ties) — wiped on restart (openspec add-runtime-entry-api).
 type Engine struct {
-	cfg   Config // original config (snapshot for the overview UI)
-	exact map[string]indexedEntry
-	cidrs []cidrEntry
-	rules []compiledRule
-	ptr   PTRLookup
-	ttl   time.Duration
+	cfg     Config // original config (snapshot for the overview UI)
+	exact   map[string]indexedEntry
+	cidrs   []cidrEntry
+	rules   []compiledRule
+	ptr     PTRLookup
+	ttl     time.Duration
+	overlay Overlay
 
 	cacheMu sync.Mutex
 	cache   map[string]cacheEntry
@@ -76,11 +80,12 @@ func Build(cfg Config, ptr PTRLookup) (*Engine, error) {
 		return nil, err
 	}
 	e := &Engine{
-		cfg:   cfg,
-		exact: make(map[string]indexedEntry),
-		ptr:   ptr,
-		cache: make(map[string]cacheEntry),
-		now:   time.Now,
+		cfg:     cfg,
+		exact:   make(map[string]indexedEntry),
+		ptr:     ptr,
+		overlay: newOverlay(),
+		cache:   make(map[string]cacheEntry),
+		now:     time.Now,
 	}
 	e.ttl = cfg.Hostname.LookupTTL
 	if e.ttl <= 0 {
@@ -127,6 +132,7 @@ type EntryView struct {
 	CIDR     string `json:"cidr,omitempty"`
 	Profile  string `json:"profile"`
 	Hostname string `json:"hostname,omitempty"` // display data
+	Runtime  bool   `json:"runtime,omitempty"`  // overlay entry (ephemeral)
 }
 
 // HostnameView groups the PTR tier configuration.
@@ -149,7 +155,8 @@ func EmptySnapshot() Snapshot {
 	}
 }
 
-// Snapshot renders the configured sources in configured order.
+// Snapshot renders the configured sources in configured order, followed by
+// the runtime overlay entries (flagged Runtime=true).
 func (e *Engine) Snapshot() Snapshot {
 	s := EmptySnapshot()
 	s.Hostname.LookupTTL = e.ttl.String()
@@ -161,6 +168,15 @@ func (e *Engine) Snapshot() Snapshot {
 			Hostname: entry.Hostname,
 		})
 	}
+	for _, overlayEntry := range e.overlay.Entries() {
+		s.Entries = append(s.Entries, EntryView{
+			IP:       overlayEntry.IP,
+			CIDR:     overlayEntry.CIDR,
+			Profile:  overlayEntry.Profile,
+			Hostname: overlayEntry.Hostname,
+			Runtime:  true,
+		})
+	}
 	for _, rule := range e.cfg.Hostname.Rules {
 		s.Hostname.Rules = append(s.Hostname.Rules, RuleView{Pattern: rule.Pattern, Profile: rule.Profile})
 	}
@@ -170,7 +186,16 @@ func (e *Engine) Snapshot() Snapshot {
 // Resolve evaluates the chain for ip. ok=false ⇒ no-match (the handler
 // answers the documented 404 {}).
 func (e *Engine) Resolve(ctx context.Context, ip net.IP) (Result, bool) {
-	// 1. Exact-IP — the most specific operator statement.
+	// 1a. Runtime exact-IP entries — the overlay wins over static YAML for
+	// the same IP (ephemeral automation beats operator defaults).
+	if res, ok := e.overlayLookupExact(ip); ok {
+		log.WithFields(log.Fields{
+			"ip": ip.String(), "source": res.Source, "profile": res.Profile,
+		}).Debug("resolve: runtime exact-ip match")
+		return res, true
+	}
+
+	// 1b. Static exact-IP entries — the most specific operator statement.
 	if entry, ok := e.exact[ip.String()]; ok {
 		log.WithFields(log.Fields{
 			"ip": ip.String(), "source": fmt.Sprintf("ip:%d", entry.idx),
@@ -203,15 +228,16 @@ func (e *Engine) Resolve(ctx context.Context, ip net.IP) (Result, bool) {
 		}
 	}
 
-	// 3. CIDR — longest matching prefix; subnet-level fallback.
+	// 3. CIDR — longest matching prefix; subnet-level fallback. The runtime
+	// overlay's CIDRs are merged into the scan (runtime wins ties).
 	if best, ok := e.longestPrefix(ip); ok {
 		log.WithFields(log.Fields{
-			"ip": ip.String(), "source": fmt.Sprintf("cidr:%d", best.idx),
-			"cidr": best.text, "profile": best.profile, "ptr_cache": cacheHit,
+			"ip": ip.String(), "source": best.Source, "cidr": best.cidrText,
+			"profile": best.profile, "ptr_cache": cacheHit,
 		}).Debug("resolve: cidr match")
 		return Result{
 			Profile: best.profile,
-			Source:  fmt.Sprintf("cidr:%d", best.idx),
+			Source:  best.Source,
 		}, true
 	}
 
@@ -266,10 +292,26 @@ func asDNSError(err error, target **net.DNSError) bool {
 	return false
 }
 
-// longestPrefix returns the most specific matching CIDR (ties: first
-// configured).
-func (e *Engine) longestPrefix(ip net.IP) (cidrEntry, bool) {
-	var best cidrEntry
+// overlayLookupExact consults the runtime overlay's exact map.
+func (e *Engine) overlayLookupExact(ip net.IP) (Result, bool) {
+	e.overlay.mu.RLock()
+	defer e.overlay.mu.RUnlock()
+	entry, ok := e.overlay.exact[ip.String()]
+	if !ok {
+		return Result{}, false
+	}
+	return Result{
+		Profile:  entry.Profile,
+		Hostname: entry.Hostname,
+		Source:   fmt.Sprintf("runtime-ip:%s", ip.String()),
+	}, true
+}
+
+// longestPrefix returns the most specific matching CIDR across static AND
+// overlay entries; ties (same prefix length) favour the runtime overlay
+// (openspec add-runtime-entry-api).
+func (e *Engine) longestPrefix(ip net.IP) (cidrMatch, bool) {
+	var best cidrMatch
 	bestOnes, found := -1, false
 	for _, c := range e.cidrs {
 		if !c.net.Contains(ip) {
@@ -277,8 +319,55 @@ func (e *Engine) longestPrefix(ip net.IP) (cidrEntry, bool) {
 		}
 		ones, _ := c.net.Mask.Size()
 		if ones > bestOnes {
-			best, bestOnes, found = c, ones, true
+			best = cidrMatch{cidrText: c.text, profile: c.profile, Source: fmt.Sprintf("cidr:%d", c.idx)}
+			bestOnes, found = ones, true
 		}
 	}
+	e.overlay.mu.RLock()
+	for _, c := range e.overlay.cidrs {
+		if !c.net.Contains(ip) {
+			continue
+		}
+		ones, _ := c.net.Mask.Size()
+		// Runtime wins ties: >= here (vs > for static above).
+		if ones >= bestOnes {
+			best = cidrMatch{cidrText: c.text, profile: c.entry.Profile, Source: fmt.Sprintf("runtime-cidr:%s", c.text)}
+			bestOnes, found = ones, true
+		}
+	}
+	e.overlay.mu.RUnlock()
 	return best, found
+}
+
+// AddEntry registers one runtime entry (POST /api/v1/entries).
+func (e *Engine) AddEntry(entry Entry) error {
+	return e.overlay.Add(entry)
+}
+
+// RemoveEntry deregisters a runtime entry by ip or cidr string. The second
+// return marks a static hit — the API reports that as "not removable".
+func (e *Engine) RemoveEntry(key string) (found, staticHit bool) {
+	if found := e.overlay.Remove(key); found {
+		return true, false
+	}
+	// Static hit detection: exact map (canonical) or CIDR list.
+	if ip := net.ParseIP(key); ip != nil {
+		_, staticHit = e.exact[ip.String()]
+		return false, staticHit
+	}
+	if _, ipNet, err := net.ParseCIDR(key); err == nil {
+		for _, c := range e.cidrs {
+			if c.net.String() == ipNet.String() {
+				return false, true
+			}
+		}
+	}
+	return false, false
+}
+
+// cidrMatch is the winning CIDR lookup (static or overlay).
+type cidrMatch struct {
+	cidrText string
+	profile  string
+	Source   string
 }

@@ -14,6 +14,8 @@ export interface InventoryEntry {
   cidr?: string;
   profile: string;
   hostname?: string;
+  /** Ephemeral overlay entry (POST /api/v1/entries) — wiped on restart. */
+  runtime?: boolean;
 }
 
 export interface InventorySnapshot {

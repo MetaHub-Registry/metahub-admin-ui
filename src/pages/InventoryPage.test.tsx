@@ -11,6 +11,7 @@ const snapshot = {
   entries: [
     { ip: "10.10.1.42", profile: "gpu/a100", hostname: "gpu-h100-042.a100.cluster.example.com" },
     { cidr: "10.0.1.0/24", profile: "zen4" },
+    { ip: "192.168.5.115", profile: "e2e/42", runtime: true },
   ],
   hostname: {
     lookup_ttl: "1m0s",
@@ -31,6 +32,9 @@ describe("InventoryPage", () => {
     // gpu/a100 appears twice (exact-IP entry + hostname rule)
     expect(screen.getAllByText("gpu/a100").length).toBe(2);
     expect(screen.getByText("zen4")).toBeInTheDocument();
+    // runtime entry: flagged with a badge + the e2e profile visible
+    expect(screen.getByText("runtime")).toBeInTheDocument();
+    expect(screen.getByText("e2e/42")).toBeInTheDocument();
     // rule pattern is rendered verbatim (single backslashes)
     expect(screen.getByText("\\.a100\\.cluster\\.example\\.com$")).toBeInTheDocument();
     expect(screen.getByText(/lookup cache ttl/i)).toBeInTheDocument();
