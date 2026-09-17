@@ -112,7 +112,10 @@ func TestAddEntryRoundTrip(t *testing.T) {
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("DELETE status = %d, want 204", resp.StatusCode)
 	}
-	res, _ = http.Get(srv.URL + "/api/v1/resolve?ip=192.168.5.115")
+	res, err = http.Get(srv.URL + "/api/v1/resolve?ip=192.168.5.115")
+	if err != nil {
+		t.Fatalf("GET resolve after removal: %v", err)
+	}
 	res.Body.Close()
 	if res.StatusCode != http.StatusNotFound {
 		t.Fatalf("after removal status = %d, want 404 (IP not in static config)", res.StatusCode)
@@ -157,7 +160,10 @@ func TestDeleteEntrySemantics(t *testing.T) {
 
 	// Both params → 400.
 	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/entries?ip=1.2.3.4&cidr=10.0.0.0/8", nil)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE both params: %v", err)
+	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("both params status = %d, want 400", resp.StatusCode)
@@ -165,7 +171,10 @@ func TestDeleteEntrySemantics(t *testing.T) {
 
 	// No params → 400.
 	req, _ = http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/entries", nil)
-	resp, _ = http.DefaultClient.Do(req)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE no params: %v", err)
+	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("no params status = %d, want 400", resp.StatusCode)
@@ -173,7 +182,10 @@ func TestDeleteEntrySemantics(t *testing.T) {
 
 	// Static entry → 404 with the not-removable hint.
 	req, _ = http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/entries?ip=10.10.1.42", nil)
-	resp, _ = http.DefaultClient.Do(req)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE static entry: %v", err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("static entry status = %d, want 404", resp.StatusCode)
@@ -186,7 +198,10 @@ func TestDeleteEntrySemantics(t *testing.T) {
 
 	// Unknown entry → plain 404.
 	req, _ = http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/entries?ip=172.16.1.1", nil)
-	resp, _ = http.DefaultClient.Do(req)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE unknown entry: %v", err)
+	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown entry status = %d, want 404", resp.StatusCode)
