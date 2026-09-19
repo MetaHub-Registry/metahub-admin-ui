@@ -133,6 +133,7 @@ type EntryView struct {
 	Profile  string `json:"profile"`
 	Hostname string `json:"hostname,omitempty"` // display data
 	Runtime  bool   `json:"runtime,omitempty"`  // overlay entry (ephemeral)
+	Learned  bool   `json:"learned,omitempty"`  // learned from an explicit login (ephemeral)
 }
 
 // HostnameView groups the PTR tier configuration.
@@ -175,6 +176,14 @@ func (e *Engine) Snapshot() Snapshot {
 			Profile:  overlayEntry.Profile,
 			Hostname: overlayEntry.Hostname,
 			Runtime:  true,
+		})
+	}
+	for ipKey, entry := range e.overlay.Learned() {
+		s.Entries = append(s.Entries, EntryView{
+			IP:      ipKey,
+			Profile: entry.Profile,
+			Runtime: true,
+			Learned: true,
 		})
 	}
 	for _, rule := range e.cfg.Hostname.Rules {
@@ -228,7 +237,17 @@ func (e *Engine) Resolve(ctx context.Context, ip net.IP) (Result, bool) {
 		}
 	}
 
-	// 3. CIDR — longest matching prefix; subnet-level fallback. The runtime
+	// 3. Learned ip→profile entries (openspec add-learned-entries) — per-node
+	// evidence from explicit logins; beats subnet defaults (CIDR) but never
+	// operator-configured exact-IP/hostname entries.
+	if res, ok := e.overlayLookupLearned(ip); ok {
+		log.WithFields(log.Fields{
+			"ip": ip.String(), "source": res.Source, "profile": res.Profile,
+		}).Debug("resolve: learned match")
+		return res, true
+	}
+
+	// 4. CIDR — longest matching prefix; subnet-level fallback. The runtime
 	// overlay's CIDRs are merged into the scan (runtime wins ties).
 	if best, ok := e.longestPrefix(ip); ok {
 		log.WithFields(log.Fields{
@@ -307,6 +326,20 @@ func (e *Engine) overlayLookupExact(ip net.IP) (Result, bool) {
 	}, true
 }
 
+// overlayLookupLearned consults the overlay's learned ip→profile map.
+func (e *Engine) overlayLookupLearned(ip net.IP) (Result, bool) {
+	e.overlay.mu.RLock()
+	defer e.overlay.mu.RUnlock()
+	entry, ok := e.overlay.learned[ip.String()]
+	if !ok {
+		return Result{}, false
+	}
+	return Result{
+		Profile: entry.Profile,
+		Source:  fmt.Sprintf("learned:%s", ip.String()),
+	}, true
+}
+
 // longestPrefix returns the most specific matching CIDR across static AND
 // overlay entries; ties (same prefix length) favour the runtime overlay
 // (openspec add-runtime-entry-api).
@@ -344,8 +377,28 @@ func (e *Engine) AddEntry(entry Entry) error {
 	return e.overlay.Add(entry)
 }
 
-// RemoveEntry deregisters a runtime entry by ip or cidr string. The second
-// return marks a static hit — the API reports that as "not removable".
+// LearnEntry stores/updates a learned ip→profile mapping (last-write-wins;
+// openspec add-learned-entries).
+func (e *Engine) LearnEntry(entry Entry) error {
+	return e.overlay.Learn(entry)
+}
+
+// HasLearned reports whether a learned mapping exists for ip (canonical
+// parse; used by the API to pick 201-created vs 200-updated).
+func (e *Engine) HasLearned(ipStr string) bool {
+	parsed := net.ParseIP(ipStr)
+	if parsed == nil {
+		return false
+	}
+	e.overlay.mu.RLock()
+	defer e.overlay.mu.RUnlock()
+	_, ok := e.overlay.learned[parsed.String()]
+	return ok
+}
+
+// RemoveEntry deregisters a runtime or learned entry by ip or cidr string.
+// The second return marks a static hit — the API reports that as "not
+// removable".
 func (e *Engine) RemoveEntry(key string) (found, staticHit bool) {
 	if found := e.overlay.Remove(key); found {
 		return true, false

@@ -53,12 +53,20 @@ export default function InventoryPage() {
               >
                 {entryKind(e)}
               </span>
-              {e.runtime && (
+              {e.runtime && !e.learned && (
                 <span
                   className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
                   title="Ephemeral runtime entry (POST /api/v1/entries) — wiped on restart"
                 >
                   runtime
+                </span>
+              )}
+              {e.learned && (
+                <span
+                  className="rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                  title="Learned from the last explicit login from this IP — wiped on restart"
+                >
+                  learned
                 </span>
               )}
               <span className="font-mono text-sm">{e.ip ?? e.cidr}</span>

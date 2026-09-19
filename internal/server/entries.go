@@ -14,11 +14,14 @@ import (
 // entryRequest is the body of POST /api/v1/entries — exactly one of ip/cidr,
 // non-empty profile, optional display hostname. Validation matches the YAML
 // sources (shared validateEntry), so error messages name the field.
+// With learned=true the entry is stored in the learned tier instead
+// (last-write-wins per IP; cidr rejected — per-IP observations only).
 type entryRequest struct {
 	IP       string `json:"ip"`
 	CIDR     string `json:"cidr"`
 	Profile  string `json:"profile"`
 	Hostname string `json:"hostname"`
+	Learned  bool   `json:"learned"`
 }
 
 // handleAddEntry registers one runtime entry (ephemeral overlay — wiped on
@@ -41,6 +44,30 @@ func (s *Server) handleAddEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	entry := inventory.Entry{IP: req.IP, CIDR: req.CIDR, Profile: req.Profile, Hostname: req.Hostname}
+	if req.Learned {
+		if req.CIDR != "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "learned entry: cidr not supported — learned mappings are per-IP",
+			})
+			return
+		}
+		isUpdate := s.opts.Engine.HasLearned(req.IP)
+		if err := s.opts.Engine.LearnEntry(entry); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		log.WithFields(log.Fields{"ip": entry.IP, "profile": entry.Profile}).
+			Info("learned entry stored (last-write-wins)")
+		status := http.StatusCreated
+		if isUpdate {
+			status = http.StatusOK
+		}
+		writeJSON(w, status, map[string]any{
+			"status": "learned",
+			"note":   "learned entries are ephemeral — wiped on service restart",
+		})
+		return
+	}
 	if err := s.opts.Engine.AddEntry(entry); err != nil {
 		if errors.Is(err, inventory.ErrDuplicate) {
 			writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})

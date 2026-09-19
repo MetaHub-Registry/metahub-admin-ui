@@ -19,9 +19,10 @@ var ErrDuplicate = fmt.Errorf("duplicate runtime entry")
 // CIDRs into the longest-prefix scan (runtime wins ties). The overlay never
 // mutates static sources.
 type Overlay struct {
-	mu    sync.RWMutex
-	exact map[string]Entry // canonical net.IP.String() → entry
-	cidrs []overlayCIDR    // registration order
+	mu      sync.RWMutex
+	exact   map[string]Entry // canonical net.IP.String() → entry
+	cidrs   []overlayCIDR    // registration order
+	learned map[string]Entry // canonical net.IP.String() → entry (last-write-wins)
 }
 
 type overlayCIDR struct {
@@ -32,7 +33,10 @@ type overlayCIDR struct {
 
 // newOverlay returns an empty overlay.
 func newOverlay() Overlay {
-	return Overlay{exact: make(map[string]Entry)}
+	return Overlay{
+		exact:   make(map[string]Entry),
+		learned: make(map[string]Entry),
+	}
 }
 
 // Add validates and registers one entry. Validation matches the YAML
@@ -66,9 +70,10 @@ func (o *Overlay) Add(e Entry) error {
 	return nil
 }
 
-// Remove deregisters a runtime entry by its ip or cidr string. Returns
-// found=true when a runtime entry was removed. Static entries are never
-// touched here — the Engine distinguishes the static case for the API hint.
+// Remove deregisters a runtime or learned entry by its ip or cidr string.
+// Returns found=true when an overlay entry was removed. Static entries are
+// never touched here — the Engine distinguishes the static case for the API
+// hint.
 func (o *Overlay) Remove(key string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -77,6 +82,10 @@ func (o *Overlay) Remove(key string) bool {
 		canonical := ip.String()
 		if _, ok := o.exact[canonical]; ok {
 			delete(o.exact, canonical)
+			return true
+		}
+		if _, ok := o.learned[canonical]; ok {
+			delete(o.learned, canonical)
 			return true
 		}
 		return false
@@ -91,6 +100,37 @@ func (o *Overlay) Remove(key string) bool {
 		}
 	}
 	return false
+}
+
+// Learn stores/updates a learned ip→profile mapping (openspec
+// add-learned-entries). Learned entries are last-write-wins per IP — they
+// represent "the last explicit login from this IP" — and are consulted in
+// the resolution chain AFTER hostname patterns and BEFORE CIDR entries.
+// Only exact-IP mappings are accepted (a learned entry is a per-IP
+// observation, not subnet knowledge).
+func (o *Overlay) Learn(e Entry) error {
+	if e.CIDR != "" {
+		return fmt.Errorf("learned entry: cidr not supported — learned mappings are per-IP")
+	}
+	if err := validateEntry(e, "learned entry"); err != nil {
+		return err
+	}
+	key := net.ParseIP(e.IP).String() // validateEntry guarantees parseable
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.learned[key] = e
+	return nil
+}
+
+// Learned returns a snapshot of the learned mappings.
+func (o *Overlay) Learned() map[string]Entry {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	out := make(map[string]Entry, len(o.learned))
+	for k, v := range o.learned {
+		out[k] = v
+	}
+	return out
 }
 
 // Entries returns a snapshot of the overlay (CIDRs in registration order,

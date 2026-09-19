@@ -16,6 +16,8 @@ export interface InventoryEntry {
   hostname?: string;
   /** Ephemeral overlay entry (POST /api/v1/entries) — wiped on restart. */
   runtime?: boolean;
+  /** Learned from an explicit login (subset of runtime entries). */
+  learned?: boolean;
 }
 
 export interface InventorySnapshot {
