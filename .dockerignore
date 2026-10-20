@@ -1,0 +1,14 @@
+# Kept out of the build context — the Go stage receives the SPA from the
+# `ui` stage (COPY --from=ui .../dist ./dist), never from the source tree.
+node_modules
+dist
+coverage
+coverage.txt
+coverage.xml
+test.log
+sonar.log
+.scannerwork
+.env
+**/.DS_Store
+openspec
+misc

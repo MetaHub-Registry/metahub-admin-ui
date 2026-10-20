@@ -1,0 +1,13 @@
+services:
+  metahub-admin-ui:
+    build: .
+    ports:
+      - "8083:8080"
+    environment:
+      - METAHUB_ADMIN_UI_PORT=8080
+      - CFG_FILE=/etc/metahub-admin-ui/config.yaml
+      # Optional bearer check on /api/v1/resolve (spec: inventory-lookup).
+      # Unset ⇒ the service trusts the internal network (v0 posture).
+      # - INVENTORY_TOKEN=change-me
+    volumes:
+      - ./misc/config:/etc/metahub-admin-ui:ro

@@ -1,0 +1,22 @@
+# Node
+node_modules/
+
+# Built SPA — only the committed placeholder index.html is tracked; real
+# builds overwrite it and stay untracked (see README).
+dist/*
+!dist/index.html
+coverage/
+
+# Go
+/metahub-admin-ui
+coverage.txt
+coverage.xml
+report.json
+
+# Tooling / local state
+test.log
+sonar.log
+.scannerwork/
+.env
+**/.DS_Store
+.understand-anything/.trash-*

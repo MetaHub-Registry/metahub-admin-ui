@@ -1,0 +1,426 @@
+package inventory
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+)
+
+// PTRLookup reverse-resolves an IP to hostnames. Abstracted so tests can
+// stub DNS; the production adapter is NetPTRLookup.
+type PTRLookup func(ctx context.Context, ip string) ([]string, error)
+
+// NetPTRLookup is the production PTR resolver (system resolver).
+func NetPTRLookup(ctx context.Context, ip string) ([]string, error) {
+	return net.DefaultResolver.LookupAddr(ctx, ip)
+}
+
+// Result is a successful resolution outcome.
+type Result struct {
+	Profile  string
+	Hostname string // display hostname when known (exact entry or PTR)
+	Source   string // "ip:<i>", "hostname:<i>", "cidr:<i>" — winning entry
+}
+
+// Engine evaluates the ordered resolution chain: exact-IP → hostname pattern
+// (PTR, TTL-cached incl. negative) → CIDR longest-prefix. First match wins.
+// Runtime entries (POST /api/v1/entries) live in an in-memory overlay that
+// is consulted first within the exact tier and merged into the CIDR scan
+// (runtime wins ties) — wiped on restart (openspec add-runtime-entry-api).
+type Engine struct {
+	cfg     Config // original config (snapshot for the overview UI)
+	exact   map[string]indexedEntry
+	cidrs   []cidrEntry
+	rules   []compiledRule
+	ptr     PTRLookup
+	ttl     time.Duration
+	overlay Overlay
+
+	cacheMu sync.Mutex
+	cache   map[string]cacheEntry
+
+	now func() time.Time // injectable clock (tests)
+}
+
+type indexedEntry struct {
+	entry Entry
+	idx   int
+}
+
+type cidrEntry struct {
+	net     *net.IPNet
+	idx     int
+	text    string
+	profile string
+}
+
+type compiledRule struct {
+	re      *regexp.Regexp
+	pattern string
+	profile string
+	idx     int
+}
+
+type cacheEntry struct {
+	names   []string // trailing dots stripped; empty ⇒ negative outcome
+	found   bool
+	expires time.Time
+}
+
+// Build compiles the validated config into an Engine. Call Validate() first —
+// Build re-checks and surfaces the same named errors defensively.
+func Build(cfg Config, ptr PTRLookup) (*Engine, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	e := &Engine{
+		cfg:     cfg,
+		exact:   make(map[string]indexedEntry),
+		ptr:     ptr,
+		overlay: newOverlay(),
+		cache:   make(map[string]cacheEntry),
+		now:     time.Now,
+	}
+	e.ttl = cfg.Hostname.LookupTTL
+	if e.ttl <= 0 {
+		e.ttl = DefaultLookupTTL
+	}
+	for i, entry := range cfg.Entries {
+		if entry.IP != "" {
+			ip := net.ParseIP(entry.IP)
+			// Validate() guarantees a parseable IP.
+			e.exact[ip.String()] = indexedEntry{entry: entry, idx: i}
+			continue
+		}
+		_, ipNet, err := net.ParseCIDR(entry.CIDR)
+		if err != nil {
+			return nil, fmt.Errorf("entries[%d]: invalid cidr %q: %v", i, entry.CIDR, err)
+		}
+		e.cidrs = append(e.cidrs, cidrEntry{net: ipNet, idx: i, text: entry.CIDR, profile: entry.Profile})
+	}
+	for i, rule := range cfg.Hostname.Rules {
+		re, err := regexp.Compile(ruleRegex(rule.Pattern))
+		if err != nil {
+			return nil, fmt.Errorf("hostname.rules[%d]: invalid pattern '%s': %v", i, rule.Pattern, err)
+		}
+		e.rules = append(e.rules, compiledRule{re: re, pattern: rule.Pattern, profile: rule.Profile, idx: i})
+	}
+	return e, nil
+}
+
+// TTL returns the configured PTR cache TTL (covers negative outcomes too).
+func (e *Engine) TTL() time.Duration {
+	return e.ttl
+}
+
+// Snapshot is the read-only view of the configured sources for the
+// overview UI (GET /api/v1/inventory).
+type Snapshot struct {
+	Entries  []EntryView  `json:"entries"`
+	Hostname HostnameView `json:"hostname"`
+}
+
+// EntryView is one configured exact-IP or CIDR entry.
+type EntryView struct {
+	IP       string `json:"ip,omitempty"`
+	CIDR     string `json:"cidr,omitempty"`
+	Profile  string `json:"profile"`
+	Hostname string `json:"hostname,omitempty"` // display data
+	Runtime  bool   `json:"runtime,omitempty"`  // overlay entry (ephemeral)
+	Learned  bool   `json:"learned,omitempty"`  // learned from an explicit login (ephemeral)
+}
+
+// HostnameView groups the PTR tier configuration.
+type HostnameView struct {
+	LookupTTL string     `json:"lookup_ttl"`
+	Rules     []RuleView `json:"rules"`
+}
+
+// RuleView is one ordered hostname-pattern rule.
+type RuleView struct {
+	Pattern string `json:"pattern"`
+	Profile string `json:"profile"`
+}
+
+// EmptySnapshot is the snapshot of a service without configured sources.
+func EmptySnapshot() Snapshot {
+	return Snapshot{
+		Entries:  []EntryView{},
+		Hostname: HostnameView{Rules: []RuleView{}},
+	}
+}
+
+// Snapshot renders the configured sources in configured order, followed by
+// the runtime overlay entries (flagged Runtime=true).
+func (e *Engine) Snapshot() Snapshot {
+	s := EmptySnapshot()
+	s.Hostname.LookupTTL = e.ttl.String()
+	for _, entry := range e.cfg.Entries {
+		s.Entries = append(s.Entries, EntryView{
+			IP:       entry.IP,
+			CIDR:     entry.CIDR,
+			Profile:  entry.Profile,
+			Hostname: entry.Hostname,
+		})
+	}
+	for _, overlayEntry := range e.overlay.Entries() {
+		s.Entries = append(s.Entries, EntryView{
+			IP:       overlayEntry.IP,
+			CIDR:     overlayEntry.CIDR,
+			Profile:  overlayEntry.Profile,
+			Hostname: overlayEntry.Hostname,
+			Runtime:  true,
+		})
+	}
+	for ipKey, entry := range e.overlay.Learned() {
+		s.Entries = append(s.Entries, EntryView{
+			IP:      ipKey,
+			Profile: entry.Profile,
+			Runtime: true,
+			Learned: true,
+		})
+	}
+	for _, rule := range e.cfg.Hostname.Rules {
+		s.Hostname.Rules = append(s.Hostname.Rules, RuleView{Pattern: rule.Pattern, Profile: rule.Profile})
+	}
+	return s
+}
+
+// Resolve evaluates the chain for ip. ok=false ⇒ no-match (the handler
+// answers the documented 404 {}).
+func (e *Engine) Resolve(ctx context.Context, ip net.IP) (Result, bool) {
+	// 1a. Runtime exact-IP entries — the overlay wins over static YAML for
+	// the same IP (ephemeral automation beats operator defaults).
+	if res, ok := e.overlayLookupExact(ip); ok {
+		log.WithFields(log.Fields{
+			"ip": ip.String(), "source": res.Source, "profile": res.Profile,
+		}).Debug("resolve: runtime exact-ip match")
+		return res, true
+	}
+
+	// 1b. Static exact-IP entries — the most specific operator statement.
+	if entry, ok := e.exact[ip.String()]; ok {
+		log.WithFields(log.Fields{
+			"ip": ip.String(), "source": fmt.Sprintf("ip:%d", entry.idx),
+			"profile": entry.entry.Profile,
+		}).Debug("resolve: exact-ip match")
+		return Result{
+			Profile:  entry.entry.Profile,
+			Hostname: entry.entry.Hostname,
+			Source:   fmt.Sprintf("ip:%d", entry.idx),
+		}, true
+	}
+
+	// 2. Hostname patterns — PTR lookup (TTL-cached, incl. negative), each
+	// name checked against the ordered rules; first match wins.
+	names, cacheHit := e.ptrNames(ctx, ip)
+	for _, name := range names {
+		for _, rule := range e.rules {
+			if rule.re.MatchString(name) {
+				log.WithFields(log.Fields{
+					"ip": ip.String(), "source": fmt.Sprintf("hostname:%d", rule.idx),
+					"pattern": rule.pattern, "profile": rule.profile,
+					"hostname": name, "ptr_cache": cacheHit,
+				}).Debug("resolve: hostname match")
+				return Result{
+					Profile:  rule.profile,
+					Hostname: name,
+					Source:   fmt.Sprintf("hostname:%d", rule.idx),
+				}, true
+			}
+		}
+	}
+
+	// 3. Learned ip→profile entries (openspec add-learned-entries) — per-node
+	// evidence from explicit logins; beats subnet defaults (CIDR) but never
+	// operator-configured exact-IP/hostname entries.
+	if res, ok := e.overlayLookupLearned(ip); ok {
+		log.WithFields(log.Fields{
+			"ip": ip.String(), "source": res.Source, "profile": res.Profile,
+		}).Debug("resolve: learned match")
+		return res, true
+	}
+
+	// 4. CIDR — longest matching prefix; subnet-level fallback. The runtime
+	// overlay's CIDRs are merged into the scan (runtime wins ties).
+	if best, ok := e.longestPrefix(ip); ok {
+		log.WithFields(log.Fields{
+			"ip": ip.String(), "source": best.Source, "cidr": best.cidrText,
+			"profile": best.profile, "ptr_cache": cacheHit,
+		}).Debug("resolve: cidr match")
+		return Result{
+			Profile: best.profile,
+			Source:  best.Source,
+		}, true
+	}
+
+	log.WithFields(log.Fields{"ip": ip.String(), "ptr_cache": cacheHit}).Debug("resolve: no match")
+	return Result{}, false
+}
+
+// ptrNames returns the cached (or freshly looked-up) PTR names with trailing
+// dots stripped, plus whether this came from cache. Negative outcomes are
+// cached too; transient DNS errors are NOT cached (retried next request).
+func (e *Engine) ptrNames(ctx context.Context, ip net.IP) ([]string, bool) {
+	key := ip.String()
+
+	e.cacheMu.Lock()
+	cached, hit := e.cache[key]
+	e.cacheMu.Unlock()
+	if hit && e.now().Before(cached.expires) {
+		return cached.names, true
+	}
+
+	names, err := e.ptr(ctx, key)
+	if err != nil {
+		var dnsErr *net.DNSError
+		if asDNSError(err, &dnsErr) && dnsErr.IsNotFound {
+			// Negative outcome — cache it (spec: TTL cache incl. negative).
+			e.store(key, cacheEntry{found: false, expires: e.now().Add(e.ttl)})
+			return nil, false
+		}
+		// Transient failure — do not cache; this request just skips the tier.
+		log.WithError(err).WithField("ip", key).Debug("resolve: PTR lookup failed (not cached)")
+		return nil, false
+	}
+	cleaned := make([]string, 0, len(names))
+	for _, n := range names {
+		cleaned = append(cleaned, strings.TrimSuffix(n, "."))
+	}
+	e.store(key, cacheEntry{names: cleaned, found: true, expires: e.now().Add(e.ttl)})
+	return cleaned, false
+}
+
+func (e *Engine) store(key string, c cacheEntry) {
+	e.cacheMu.Lock()
+	defer e.cacheMu.Unlock()
+	e.cache[key] = c
+}
+
+func asDNSError(err error, target **net.DNSError) bool {
+	if e, ok := err.(*net.DNSError); ok {
+		*target = e
+		return true
+	}
+	return false
+}
+
+// overlayLookupExact consults the runtime overlay's exact map.
+func (e *Engine) overlayLookupExact(ip net.IP) (Result, bool) {
+	e.overlay.mu.RLock()
+	defer e.overlay.mu.RUnlock()
+	entry, ok := e.overlay.exact[ip.String()]
+	if !ok {
+		return Result{}, false
+	}
+	return Result{
+		Profile:  entry.Profile,
+		Hostname: entry.Hostname,
+		Source:   fmt.Sprintf("runtime-ip:%s", ip.String()),
+	}, true
+}
+
+// overlayLookupLearned consults the overlay's learned ip→profile map.
+func (e *Engine) overlayLookupLearned(ip net.IP) (Result, bool) {
+	e.overlay.mu.RLock()
+	defer e.overlay.mu.RUnlock()
+	entry, ok := e.overlay.learned[ip.String()]
+	if !ok {
+		return Result{}, false
+	}
+	return Result{
+		Profile: entry.Profile,
+		Source:  fmt.Sprintf("learned:%s", ip.String()),
+	}, true
+}
+
+// longestPrefix returns the most specific matching CIDR across static AND
+// overlay entries; ties (same prefix length) favour the runtime overlay
+// (openspec add-runtime-entry-api).
+func (e *Engine) longestPrefix(ip net.IP) (cidrMatch, bool) {
+	var best cidrMatch
+	bestOnes, found := -1, false
+	for _, c := range e.cidrs {
+		if !c.net.Contains(ip) {
+			continue
+		}
+		ones, _ := c.net.Mask.Size()
+		if ones > bestOnes {
+			best = cidrMatch{cidrText: c.text, profile: c.profile, Source: fmt.Sprintf("cidr:%d", c.idx)}
+			bestOnes, found = ones, true
+		}
+	}
+	e.overlay.mu.RLock()
+	for _, c := range e.overlay.cidrs {
+		if !c.net.Contains(ip) {
+			continue
+		}
+		ones, _ := c.net.Mask.Size()
+		// Runtime wins ties: >= here (vs > for static above).
+		if ones >= bestOnes {
+			best = cidrMatch{cidrText: c.text, profile: c.entry.Profile, Source: fmt.Sprintf("runtime-cidr:%s", c.text)}
+			bestOnes, found = ones, true
+		}
+	}
+	e.overlay.mu.RUnlock()
+	return best, found
+}
+
+// AddEntry registers one runtime entry (POST /api/v1/entries).
+func (e *Engine) AddEntry(entry Entry) error {
+	return e.overlay.Add(entry)
+}
+
+// LearnEntry stores/updates a learned ip→profile mapping (last-write-wins;
+// openspec add-learned-entries).
+func (e *Engine) LearnEntry(entry Entry) error {
+	return e.overlay.Learn(entry)
+}
+
+// HasLearned reports whether a learned mapping exists for ip (canonical
+// parse; used by the API to pick 201-created vs 200-updated).
+func (e *Engine) HasLearned(ipStr string) bool {
+	parsed := net.ParseIP(ipStr)
+	if parsed == nil {
+		return false
+	}
+	e.overlay.mu.RLock()
+	defer e.overlay.mu.RUnlock()
+	_, ok := e.overlay.learned[parsed.String()]
+	return ok
+}
+
+// RemoveEntry deregisters a runtime or learned entry by ip or cidr string.
+// The second return marks a static hit — the API reports that as "not
+// removable".
+func (e *Engine) RemoveEntry(key string) (found, staticHit bool) {
+	if found := e.overlay.Remove(key); found {
+		return true, false
+	}
+	// Static hit detection: exact map (canonical) or CIDR list.
+	if ip := net.ParseIP(key); ip != nil {
+		_, staticHit = e.exact[ip.String()]
+		return false, staticHit
+	}
+	if _, ipNet, err := net.ParseCIDR(key); err == nil {
+		for _, c := range e.cidrs {
+			if c.net.String() == ipNet.String() {
+				return false, true
+			}
+		}
+	}
+	return false, false
+}
+
+// cidrMatch is the winning CIDR lookup (static or overlay).
+type cidrMatch struct {
+	cidrText string
+	profile  string
+	Source   string
+}
