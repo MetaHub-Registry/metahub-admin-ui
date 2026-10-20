@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a capability or a change in behaviour.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem first. Check ROADMAP.md before proposing
+        something that is already planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - registry API
+        - web UI
+        - CLI
+        - admin UI / inventory
+        - community edition
+        - documentation
+        - deployment (compose / Helm)
+    validations:
+      required: true

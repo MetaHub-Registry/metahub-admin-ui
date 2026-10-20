@@ -1,0 +1,65 @@
+name: Bug report
+description: Something does not work as documented.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report.
+
+        Do **not** include credentials, tokens, or private hostnames. For
+        security issues, follow SECURITY.md instead of opening a public issue.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "metahub-api 1.0.0, or commit abc1234"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - registry API
+        - web UI
+        - CLI
+        - admin UI / inventory
+        - community edition
+        - documentation
+        - deployment (compose / Helm)
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "OS, architecture, container runtime, deployment method"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      render: shell

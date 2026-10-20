@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: mailto:security@metahub-registry.org
+    about: Report vulnerabilities privately, not in a public issue.
+  - name: Documentation
+    url: https://metahub-registry.org
+    about: Quickstart, architecture, and the profile specification.
