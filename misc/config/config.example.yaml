@@ -13,20 +13,19 @@
 # Invalid sources (bad regex/CIDR/IP, empty profile) fail startup, naming
 # the offending entry. Reload = restart or SIGHUP in v0.
 #
-# This mirrors the dev-cluster seed (flux/metahub
-# clusters/k3s.metahub/dev/metahub-admin-ui/configmap.yaml).
+# The addresses below are documentation examples; replace them with your own.
 
 inventory:
   entries:
-    # Lab machines (2026-09-16, operator-provided)
-    - ip: "192.168.5.115"
+    # Example exact-IP entries
+    - ip: "192.0.2.115"
       profile: "frame"
-      hostname: "frame.hvk"
-    - ip: "192.168.5.155"
+      hostname: "frame.example.com"
+    - ip: "192.0.2.155"
       profile: "bazzite"
-      hostname: "bazzite.hvk"
-    # Subnet fallback — everything else on the LAN resolves to generic
-    - cidr: "192.168.5.0/24"
+      hostname: "bazzite.example.com"
+    # Subnet fallback — everything else in the range resolves to generic
+    - cidr: "192.0.2.0/24"
       profile: "generic"
 
   hostname:
