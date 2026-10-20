@@ -86,3 +86,11 @@ Session change `add-admin-ui-inventory-service` — **skeleton phase**
   `ARG TARGETOS TARGETARCH` → `GOOS/GOARCH` is MANDATORY — without it both
   manifest variants contain an amd64 binary (exec format error on arm64).
   House rule: multi-arch via per-arch job fan-out, not single buildx jobs.
+
+## Session close — 2026-10-20
+
+- Inventory service: resolution engine (exact-IP → hostname → learned → CIDR),
+  runtime and learned entry APIs, lookup UI.
+- `add-inventory-service`, `add-learned-entries`, `add-runtime-entry-api`
+  validate with `openspec validate --strict`.
+- Example config uses documentation addresses; merged current `main`.
