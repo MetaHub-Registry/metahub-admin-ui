@@ -2,10 +2,8 @@
 
 ## Status
 
-New repo (session `hostname-profile-resolution`). **No codebase knowledge
-graph yet** (`.understand-anything/` is absent) — the codebase is small
-enough to read directly. Once material code exists, generate it with the
-global `/understand` tool and commit the artifacts, as in metahub-api/ui.
+New repo (session `hostname-profile-resolution`). The codebase is small
+enough to read directly.
 
 ## Layout & Conventions
 

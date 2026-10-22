@@ -50,7 +50,7 @@ Session change `add-admin-ui-inventory-service` — **skeleton phase**
 - `internal/server/server.go` — routes: `/api/v1/health`, `/api/v1/resolve`
   (stub), SPA mount. Contract: resolve path never 5xx.
 - `assets.go` — the `//go:embed all:dist` seam between Go and SPA.
-- `openspec/changes/add-inventory-service/` — tasks 2.x (engine, config,
+- `MetaHub-Registry/openspec` → `changes/add-inventory-service/` — tasks 2.x (engine, config,
   endpoint wiring) and 3.x (deployment) still open.
 
 ## Gotchas

@@ -54,7 +54,7 @@ SonarQube project key: `metahub-admin-ui` (see `sonar-project.properties`).
 
 ## OpenSpec
 
-Active session change: `openspec/changes/add-inventory-service/`
+Active session change: `MetaHub-Registry/openspec` → `changes/add-inventory-service/`
 (proposal/design/tasks + delta spec `specs/inventory-lookup`). The
 session-scoped design intent lives in
 `sessions/hostname-profile-resolution/openspec/changes/add-admin-ui-inventory-service/`.

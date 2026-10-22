@@ -29,7 +29,7 @@ var rootCmd = &cobra.Command{
 	Short: "MetaHub admin UI service: inventory lookup API + embedded SPA",
 	Long: `metahub-admin-ui serves the ops-facing admin UI and the versioned
 inventory API (/api/v1/...). First capability: profile resolution +
-inventory lookup (see openspec/changes/add-inventory-service/).`,
+inventory lookup (see the MetaHub-Registry/openspec change add-inventory-service).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		lvl, err := log.ParseLevel(logLevel)
 		if err != nil {

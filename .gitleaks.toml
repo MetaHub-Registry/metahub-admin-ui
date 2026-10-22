@@ -1,0 +1,5 @@
+# Naming the config in every public repository makes the scan reproducible and
+# keeps the bar identical across repos. Add path- or pattern-scoped entries
+# only with a reason, never a blanket rule suppression.
+[extend]
+useDefault = true
