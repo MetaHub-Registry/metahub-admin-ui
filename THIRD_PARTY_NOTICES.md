@@ -56,11 +56,11 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `@jridgewell/sourcemap-codec@1.6.0` | MIT | https://github.com/jridgewell/sourcemaps |
 | `@jridgewell/trace-mapping@0.3.31` | MIT | https://github.com/jridgewell/sourcemaps |
 | `@oxc-project/types@0.155.0` | MIT | https://github.com/oxc-project/oxc |
-| `@rolldown/binding-darwin-arm64@1.2.15` | MIT | https://github.com/rolldown/rolldown |
+| `@rolldown/binding-linux-arm64-gnu@1.2.15` | MIT | https://github.com/rolldown/rolldown |
 | `@rolldown/pluginutils@1.0.1` | MIT | https://github.com/rolldown/plugins |
 | `@standard-schema/spec@1.1.0` | MIT | https://github.com/standard-schema/standard-schema |
 | `@tailwindcss/node@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
-| `@tailwindcss/oxide-darwin-arm64@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
+| `@tailwindcss/oxide-linux-arm64-gnu@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
 | `@tailwindcss/oxide@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
 | `@tailwindcss/vite@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
 | `@tanstack/query-core@5.103.0` | MIT | https://github.com/TanStack/query |
@@ -162,7 +162,6 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `find-up@5.0.0` | MIT | https://github.com/sindresorhus/find-up |
 | `flat-cache@4.0.1` | MIT | https://github.com/jaredwray/flat-cache |
 | `flatted@3.4.4` | ISC | https://github.com/WebReflection/flatted |
-| `fsevents@2.3.3` | MIT | https://github.com/fsevents/fsevents |
 | `gensync@1.0.0-beta.2` | MIT | https://github.com/loganfsmyth/gensync |
 | `glob-parent@6.0.2` | ISC | https://github.com/gulpjs/glob-parent |
 | `globals@14.0.0` | MIT | https://github.com/sindresorhus/globals |
@@ -197,8 +196,8 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `json5@2.2.3` | MIT | https://github.com/json5/json5 |
 | `keyv@4.5.4` | MIT | https://github.com/jaredwray/keyv |
 | `levn@0.4.1` | MIT | https://github.com/gkz/levn |
-| `lightningcss-darwin-arm64@1.32.0` | MPL-2.0 | https://github.com/parcel-bundler/lightningcss |
-| `lightningcss-darwin-arm64@1.33.0` | MPL-2.0 | https://github.com/parcel-bundler/lightningcss |
+| `lightningcss-linux-arm64-gnu@1.32.0` | MPL-2.0 | https://github.com/parcel-bundler/lightningcss |
+| `lightningcss-linux-arm64-gnu@1.33.0` | MPL-2.0 | https://github.com/parcel-bundler/lightningcss |
 | `lightningcss@1.32.0` | MPL-2.0 | https://github.com/parcel-bundler/lightningcss |
 | `lightningcss@1.33.0` | MPL-2.0 | https://github.com/parcel-bundler/lightningcss |
 | `locate-path@6.0.0` | MIT | https://github.com/sindresorhus/locate-path |
