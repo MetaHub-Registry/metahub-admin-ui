@@ -1,0 +1,32 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  default: none
+  enable:
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  exclusions:
+    generated: lax
+    rules:
+      # Existing public error strings are capitalised; changing them is a
+      # user-visible change and belongs in a release, not in the CI lane.
+      - linters: [staticcheck]
+        text: "ST1005:"
+      # FailGetToken predates the ErrFoo convention and is exported.
+      - linters: [staticcheck]
+        text: "ST1012:"
+      # Deprecation notices are tracked separately and do not gate PRs.
+      - linters: [staticcheck]
+        text: "SA1019:"
+      # The linter binary's embedded toolchain reports false inlining
+      # mismatches for modules that declare an older go directive.
+      - linters: [govet]
+        text: "cannot inline call"
+formatters:
+  enable: []
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
