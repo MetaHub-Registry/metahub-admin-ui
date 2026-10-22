@@ -17,17 +17,15 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 HEADER
 
 npm exec --yes license-checker@25.0.1 -- --json --excludePrivatePackages 2>/dev/null |
-  python3 -c '
-import json
-import sys
-
-packages = json.load(sys.stdin)
-for name in sorted(packages):
-    meta = packages[name]
-    source = meta.get("repository") or meta.get("url") or ""
-    if isinstance(source, dict):
-        source = source.get("url", "")
-    source = source.removesuffix(".git")
-    lic = meta.get("licenses", "")
-    print("| `%s` | %s | %s |" % (name, lic, source))
+  node -e '
+const fs = require("fs");
+const packages = JSON.parse(fs.readFileSync(0, "utf8"));
+for (const name of Object.keys(packages).sort()) {
+  const meta = packages[name];
+  let source = meta.repository || meta.url || "";
+  if (typeof source === "object") source = source.url || "";
+  source = String(source).replace(/\.git$/, "");
+  const lic = meta.licenses || "";
+  console.log("| `" + name + "` | " + lic + " | " + source + " |");
+}
 '
