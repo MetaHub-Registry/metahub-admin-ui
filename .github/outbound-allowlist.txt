@@ -1,0 +1,23 @@
+# Hosts non-test source may contact. Adding one is a review decision.
+# Wildcards match subdomains only: *.example.com covers a.example.com.
+127.0.0.1
+localhost
+example.com
+*.example.com
+*.example.invalid
+*.invalid
+metahub-registry.org
+*.metahub-registry.org
+metahub.qnib.org
+*.qnib.org
+github.com
+*.githubusercontent.com
+ghcr.io
+quay.io
+docker.io
+*.docker.io
+registry-1.docker.io
+auth.docker.io
+w3.org
+*.w3.org
+vite.dev
