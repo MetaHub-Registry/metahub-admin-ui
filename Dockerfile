@@ -8,7 +8,7 @@
 # No private Go modules ⇒ no SSH mount needed (unlike metahub-api/admin).
 
 # --- Stage 1: build the SPA (arch-independent JS) ---------------------------
-FROM --platform=$BUILDPLATFORM node:lts-alpine AS ui
+FROM --platform=$BUILDPLATFORM mirror.gcr.io/library/node:lts-alpine AS ui
 WORKDIR /ui
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -20,7 +20,7 @@ RUN npm run build
 # GOOS/GOARCH come from the TARGETOS/TARGETARCH args buildx sets per platform
 # variant. Without them the compiler defaults to the builder's arch and BOTH
 # manifest variants would ship an amd64 binary ("exec format error" on arm64).
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.21 AS go
+FROM --platform=$BUILDPLATFORM mirror.gcr.io/library/golang:1.24-alpine3.21 AS go
 ARG TARGETOS TARGETARCH
 WORKDIR /go/metahub-admin-ui
 COPY . .
@@ -31,7 +31,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -ldflags '-s -w' -o metahub-admin-ui .
 
 # --- Stage 3: minimal runtime -----------------------------------------------
-FROM alpine:3.21
+FROM mirror.gcr.io/library/alpine:3.21
 ENV METAHUB_ADMIN_UI_PORT=8080
 COPY --from=go /go/metahub-admin-ui/metahub-admin-ui /usr/bin/metahub-admin-ui
 EXPOSE 8080
