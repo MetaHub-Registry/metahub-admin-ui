@@ -187,7 +187,7 @@ func (e *Engine) Snapshot() Snapshot {
 		})
 	}
 	for _, rule := range e.cfg.Hostname.Rules {
-		s.Hostname.Rules = append(s.Hostname.Rules, RuleView{Pattern: rule.Pattern, Profile: rule.Profile})
+		s.Hostname.Rules = append(s.Hostname.Rules, RuleView(rule))
 	}
 	return s
 }

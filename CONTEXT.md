@@ -94,3 +94,8 @@ Session change `add-admin-ui-inventory-service` — **skeleton phase**
 - `add-inventory-service`, `add-learned-entries`, `add-runtime-entry-api`
   validate with `openspec validate --strict`.
 - Example config uses documentation addresses; merged current `main`.
+
+## 2026-10-23 — open-source-metahub
+
+- Added the public CI fast lane + aggregator (Go and node jobs).
+- No application code changed in this session.

@@ -36,14 +36,6 @@ func (p *countingPTR) lookup(_ context.Context, ip string) ([]string, error) {
 	return names, nil
 }
 
-func (p *countingPTR) engine(t *testing.T, cfg Config) *Engine {
-	t.Helper()
-	e, err := Build(cfg, p.lookup)
-	if err != nil {
-		t.Fatalf("Build: %v", err)
-	}
-	return e
-}
 
 func testEngine(t *testing.T, cfg Config, ptr PTRLookup) *Engine {
 	t.Helper()

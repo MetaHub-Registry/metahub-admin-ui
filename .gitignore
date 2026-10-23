@@ -16,6 +16,5 @@ sonar.log
 .scannerwork/
 .env
 **/.DS_Store
-openspec/changes/
 agent.compose.yaml
 agent.compose.lock
