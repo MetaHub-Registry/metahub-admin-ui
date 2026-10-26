@@ -20,7 +20,7 @@ RUN npm run build
 # GOOS/GOARCH come from the TARGETOS/TARGETARCH args buildx sets per platform
 # variant. Without them the compiler defaults to the builder's arch and BOTH
 # manifest variants would ship an amd64 binary ("exec format error" on arm64).
-FROM --platform=$BUILDPLATFORM mirror.gcr.io/library/golang:1.24-alpine3.21 AS go
+FROM --platform=$BUILDPLATFORM mirror.gcr.io/library/golang:1.26-alpine AS go
 ARG TARGETOS TARGETARCH
 WORKDIR /go/metahub-admin-ui
 COPY . .
