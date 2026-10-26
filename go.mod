@@ -3,7 +3,7 @@ module github.com/metahub-registry/metahub-admin-ui
 go 1.24.0
 
 require (
-	github.com/chi-middleware/logrus-logger v0.2.0
+	github.com/chi-middleware/logrus-logger v0.3.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
