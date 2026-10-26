@@ -121,7 +121,7 @@ jobs:
     name: fast
     if: always()
     needs: [go, node, audit, licenses, gitleaks, dco, telemetry]
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Fail when any fast job failed
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
