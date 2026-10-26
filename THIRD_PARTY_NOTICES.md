@@ -87,7 +87,7 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `@typescript-eslint/typescript-estree@8.72.0` | MIT | https://github.com/typescript-eslint/typescript-eslint |
 | `@typescript-eslint/utils@8.72.0` | MIT | https://github.com/typescript-eslint/typescript-eslint |
 | `@typescript-eslint/visitor-keys@8.72.0` | MIT | https://github.com/typescript-eslint/typescript-eslint |
-| `@vitejs/plugin-react@6.1.1` | MIT | https://github.com/vitejs/vite-plugin-react |
+| `@vitejs/plugin-react@6.1.2` | MIT | https://github.com/vitejs/vite-plugin-react |
 | `@vitest/coverage-v8@4.1.11` | MIT | https://github.com/vitest-dev/vitest |
 | `@vitest/expect@4.1.11` | MIT | https://github.com/vitest-dev/vitest |
 | `@vitest/mocker@4.1.11` | MIT | https://github.com/vitest-dev/vitest |
