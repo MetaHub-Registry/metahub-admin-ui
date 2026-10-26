@@ -231,11 +231,11 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `prelude-ls@1.2.1` | MIT | https://github.com/gkz/prelude-ls |
 | `pretty-format@27.5.1` | MIT | https://github.com/facebook/jest |
 | `punycode@2.3.1` | MIT | https://github.com/mathiasbynens/punycode.js |
-| `react-dom@19.3.0` | MIT | https://github.com/react/react |
+| `react-dom@19.3.1` | MIT | https://github.com/react/react |
 | `react-is@17.0.2` | MIT | https://github.com/facebook/react |
 | `react-router-dom@7.18.4` | MIT | https://github.com/remix-run/react-router |
 | `react-router@7.18.4` | MIT | https://github.com/remix-run/react-router |
-| `react@19.3.0` | MIT | https://github.com/react/react |
+| `react@19.3.1` | MIT | https://github.com/react/react |
 | `redent@3.0.0` | MIT | https://github.com/sindresorhus/redent |
 | `require-from-string@2.0.2` | MIT | https://github.com/floatdrop/require-from-string |
 | `resolve-from@4.0.0` | MIT | https://github.com/sindresorhus/resolve-from |
