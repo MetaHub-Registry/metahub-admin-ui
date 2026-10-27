@@ -259,7 +259,7 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `typescript-eslint@8.72.0` | MIT | https://github.com/typescript-eslint/typescript-eslint |
 | `typescript@5.9.3` | Apache-2.0 | https://github.com/microsoft/TypeScript |
 | `undici-types@7.18.2` | MIT | https://github.com/nodejs/undici |
-| `undici@7.29.1` | MIT | https://github.com/nodejs/undici |
+| `undici@7.30.1` | MIT | https://github.com/nodejs/undici |
 | `update-browserslist-db@1.3.3` | MIT | https://github.com/browserslist/update-db |
 | `uri-js@4.4.1` | BSD-2-Clause | https://github.com/garycourt/uri-js |
 | `vite@8.3.5` | MIT | https://github.com/vitejs/vite |
@@ -276,4 +276,4 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `yallist@3.1.1` | ISC | https://github.com/isaacs/yallist |
 | `yocto-queue@0.1.0` | MIT | https://github.com/sindresorhus/yocto-queue |
 | `zod-validation-error@4.0.2` | MIT | https://github.com/causaly/zod-validation-error |
-| `zod@4.6.5` | MIT | https://github.com/colinhacks/zod |
+| `zod@4.6.7` | MIT | https://github.com/colinhacks/zod |
