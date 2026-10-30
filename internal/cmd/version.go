@@ -7,7 +7,7 @@ import (
 )
 
 // version is bumped by .bumpversion.cfg (session `task dev` / `task version:*:*`).
-var version = "0.1.1"
+var version = "0.1.1-dev1"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
