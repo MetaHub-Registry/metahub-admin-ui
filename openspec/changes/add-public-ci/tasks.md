@@ -13,11 +13,21 @@
 
 ## 2. Integration lane
 
-- [x] 2.1 Add `integration.yml` for the full Go suite with Docker available.
+- [x] 2.1 Add `integration.yml` for the full Go suite on release tags and on
+      demand; no container runtime is needed.
 
-## 3. Follow-ups
+## 3. Follow-ups (open-sourcing gate)
 
-- [ ] 3.1 Clear the `govulncheck` baseline and make the job blocking. Keep
-      `npm audit --omit=dev` green as dependencies move.
-- [ ] 3.2 Run the fast lane from a fork pull request before the visibility flip
+- [ ] 3.1 Clear the `govulncheck` baseline and make the job blocking.
+      Scan on 2026-10-30: **23 reachable findings, all in the Go standard
+      library** (no module findings); they close with the Go patch that
+      `1.26.x` resolves to in CI, while local `go1.26.0` still reports them.
+      Re-scan on the CI Go patch before making the job blocking.
+- [x] 3.2 `npm audit --omit=dev --audit-level=high` green — verified
+      2026-10-30: 0 vulnerabilities. Keep it green as dependencies move.
+- [ ] 3.3 Align the module floor with CI: `go.mod` declares `go 1.24.0` while
+      the fast lane pins `go 1.26.x`, which violates `go-toolchain-policy`
+      (major.minor must match). Raise the directive to `go 1.26.0` (preferred,
+      matching the other services) or pin the lane to `1.24.x`.
+- [ ] 3.4 Run the fast lane from a fork pull request before the visibility flip
       and record the run URL here.

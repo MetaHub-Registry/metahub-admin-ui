@@ -8,8 +8,9 @@ in GoCD, which contributors cannot see or run.
 
 ## What Changes
 
-Add a public, fork-safe fast lane to `metahub-admin-ui` and keep the slow, container-
-backed checks in a separate release-gating workflow.
+Add a public, fork-safe fast lane to `metahub-admin-ui`. The Go tests are
+container-free, so the fast lane runs them directly; a separate integration
+workflow remains as a slower release-time safety net.
 
 - Go: `go build ./...`, `go vet ./...`, `golangci-lint`, `go test -short ./...`
 - Node: `npm ci --ignore-scripts`, `npm run build`, `npm run lint`, `npm test`

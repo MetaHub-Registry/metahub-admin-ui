@@ -2,7 +2,9 @@
 
 ## Stack and boundary
 
-Go 1.24 (embedded SPA) and TypeScript/Vite.
+Go 1.24.0 declared in `go.mod` (embedded SPA) and TypeScript/Vite. The fast
+lane pins `go 1.26.x`, so closing task 3.3 must align the directive with the
+lane.
 
 Fast checks:
 
@@ -35,18 +37,22 @@ third-party actions by SHA and references no secret.
 cancelled. Marking only `fast` as a required check at the visibility flip keeps
 the branch-protection configuration stable as checks are added.
 
-### Container-backed checks gate releases
+### No container-backed tests
 
-Tests that need Docker run in `integration.yml` on release tags and
-`workflow_dispatch`, with no secrets. They never run on a pull request.
+No test starts a container, so the fast lane runs the whole suite with
+`-short` and no service dependency. `integration.yml` still runs the full Go
+suite on release tags and on `workflow_dispatch` as a slower safety net, with
+no secrets.
 
 ### Dependencies and licences
 
 The licence check fails on a dependency outside the allowlist and the notices
-file is regenerated in CI; a drift fails the job. `npm audit --omit=dev` is
-blocking for the production graph. `govulncheck` is advisory until the current
-transitive baseline (containerd, docker, regclient, OpenTelemetry) is refreshed;
-the job still runs on every pull request.
+file is regenerated in CI; a drift fails the job. `npm audit --omit=dev
+--audit-level=high` is blocking for the production graph and returned
+0 vulnerabilities on 2026-10-30. `govulncheck` is advisory
+(`continue-on-error: true`): the 2026-10-30 scan found 23 reachable findings,
+all in the Go standard library, with no module findings. They close with the
+Go patch `1.26.x` resolves to in CI; the job still runs on every pull request.
 
 ### Outbound hosts
 
@@ -60,4 +66,4 @@ review gate, not a network sandbox.
 |---|---|
 | A workflow needs a secret when run from a fork | it belongs in the integration lane or is dropped |
 | Action supply chain | every action is pinned to a full commit SHA |
-| Dependency advisories | Dependabot opens weekly PRs; the Go vulnerability job is advisory until the current baseline is cleared |
+| Dependency advisories | Dependabot opens weekly Go and npm PRs; `npm audit --omit=dev` is blocking, `govulncheck` is advisory until the stdlib findings clear |

@@ -52,18 +52,19 @@ SHA.
 - **WHEN** a fast check would need a project secret or special repository access
 - **THEN** it is redesigned, moved to the integration lane, or dropped
 
-### Requirement: Container-backed checks gate releases, not pull requests
+### Requirement: The full suite also runs at release time
 
-Tests that start containers SHALL run in a separate integration workflow triggered by
-`workflow_dispatch` and release tags, with read-only permissions and no
-secrets. Go packages whose `TestMain` starts containers SHALL exit early when
-`testing.Short()` is set; the fast lane SHALL run `go test -short`.
+The repository currently has no container-backed tests, so the fast lane runs
+the whole Go suite with `go test -short`. A slower integration workflow SHALL
+run the full suite on release tags and on `workflow_dispatch`, with read-only
+permissions and no secrets. A future test that starts containers SHALL follow
+the same rule and exit early under `testing.Short()`.
 
 #### Scenario: Release tag is pushed
 
 - **WHEN** a release tag is pushed
-- **THEN** the integration workflow runs the full test suite with a container
-  runtime available
+- **THEN** the integration workflow runs the full Go suite; no container
+  runtime is required today
 
 ### Requirement: Secret scanning and DCO are enforced
 
