@@ -42,3 +42,19 @@ misc/bruno/
 misc/compose/
 misc/gocd/
 .devcontainer/
+
+# Internal publish/CI tooling — excluded from the published tree (see the
+# MetaHub-Registry/openspec record, sessions/open-source-prep-v2/tooling).
+.gocd-run.sh
+.gocd-setup.sh
+misc/gitlab-ci.yml
+misc/gitlab-ci-yml
+misc/gitlabci.yaml
+PROD_PUSH.md
+misc/bin/build-prod.sh
+misc/bin/copy.sh
+misc/docker/mh-api/
+.opencode/
+.understand-anything/
+docs/session-artifacts/
+.scannerwork/
