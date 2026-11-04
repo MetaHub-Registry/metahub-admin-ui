@@ -26,3 +26,19 @@ CONTEXT.md
 openspec/
 sessions/
 .branches
+
+# Internal tooling — excluded from the published tree (see the
+# MetaHub-Registry/openspec record, sessions/open-source-prep-v2/tooling).
+Taskfile_session.yml
+Taskfile_e2e_dev.yml
+docker-compose-monitoring.yaml
+docker-compose-sonarcube.yaml
+sonar-project.properties
+misc/bin/opencode.sh
+misc/bin/setup-session-workspace.sh
+misc/bin/vl-event.sh
+misc/bin/sonar.sh
+misc/bruno/
+misc/compose/
+misc/gocd/
+.devcontainer/

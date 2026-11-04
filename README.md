@@ -47,19 +47,9 @@ npm run dev
 ```bash
 ./test.sh            # Go tests + coverage (gocover-cobertura/gocoverstats)
                      # + vitest coverage when node_modules exists
-source .env && ./misc/bin/sonar.sh
 ```
-
-SonarQube project key: `metahub-admin-ui` (see `sonar-project.properties`).
-
-## OpenSpec
-
-Active session change: `MetaHub-Registry/openspec` → `changes/add-inventory-service/`
-(proposal/design/tasks + delta spec `specs/inventory-lookup`). The
-session-scoped design intent lives in
-`sessions/hostname-profile-resolution/openspec/changes/add-admin-ui-inventory-service/`.
 
 ## Versioning
 
 `.bumpversion.cfg` bumps `internal/cmd/version.go` **and** `package.json`
-in lockstep; session tooling (`task dev`, `task version:*:*`) relies on it.
+in lockstep.
