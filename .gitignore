@@ -18,3 +18,41 @@ sonar.log
 **/.DS_Store
 agent.compose.yaml
 agent.compose.lock
+
+# Internal working material — excluded from the published tree (see the
+# MetaHub-Registry/openspec record). Ignored so a later session cannot re-add it.
+AGENTS.md
+CONTEXT.md
+openspec/
+sessions/
+.branches
+
+# Internal tooling — excluded from the published tree (see the
+# MetaHub-Registry/openspec record, sessions/open-source-prep-v2/tooling).
+Taskfile_session.yml
+Taskfile_e2e_dev.yml
+docker-compose-monitoring.yaml
+docker-compose-sonarcube.yaml
+misc/bin/opencode.sh
+misc/bin/setup-session-workspace.sh
+misc/bin/vl-event.sh
+misc/bin/sonar.sh
+misc/bruno/
+misc/compose/
+.devcontainer/
+
+# Internal publish/CI tooling — excluded from the published tree (see the
+# MetaHub-Registry/openspec record, sessions/open-source-prep-v2/tooling).
+.gocd-run.sh
+.gocd-setup.sh
+misc/gitlab-ci.yml
+misc/gitlab-ci-yml
+misc/gitlabci.yaml
+PROD_PUSH.md
+misc/bin/build-prod.sh
+misc/bin/copy.sh
+misc/docker/mh-api/
+.opencode/
+.understand-anything/
+docs/session-artifacts/
+.scannerwork/
