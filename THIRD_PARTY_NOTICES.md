@@ -62,12 +62,12 @@ hand: run `.github/scripts/third-party-notices.sh > THIRD_PARTY_NOTICES.md`.
 | `@tailwindcss/oxide-linux-x64-gnu@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
 | `@tailwindcss/oxide@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
 | `@tailwindcss/vite@4.3.3` | MIT | https://github.com/tailwindlabs/tailwindcss |
-| `@tanstack/query-core@5.103.0` | MIT | https://github.com/TanStack/query |
-| `@tanstack/react-query@5.103.0` | MIT | https://github.com/TanStack/query |
+| `@tanstack/query-core@5.105.3` | MIT | https://github.com/TanStack/query |
+| `@tanstack/react-query@5.105.3` | MIT | https://github.com/TanStack/query |
 | `@testing-library/dom@10.4.2` | MIT | https://github.com/testing-library/dom-testing-library |
 | `@testing-library/jest-dom@6.9.1` | MIT | https://github.com/testing-library/jest-dom |
 | `@testing-library/react@16.3.3` | MIT | https://github.com/testing-library/react-testing-library |
-| `@testing-library/user-event@14.6.7` | MIT | https://github.com/testing-library/user-event |
+| `@testing-library/user-event@14.6.8` | MIT | https://github.com/testing-library/user-event |
 | `@types/aria-query@5.0.4` | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | `@types/chai@5.2.3` | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
 | `@types/deep-eql@4.0.2` | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
